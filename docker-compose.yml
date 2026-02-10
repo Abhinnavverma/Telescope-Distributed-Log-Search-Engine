@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # 1. The ZooKeeper (Kafka needs this to coordinate)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - telescope-net
+
+  # 2. Kafka (The Message Broker)
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092" # External access for debugging (localhost:9092)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Complex Listener Setup:
+      # - INSIDE Docker (INTERNAL): kafka:29092
+      # - OUTSIDE Docker (EXTERNAL): localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - telescope-net
+
+  # 3. Postgres (The Database)
+  postgres:
+    image: postgres:15-alpine
+    container_name: telescope-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}         # <--- SECURED
+      POSTGRES_PASSWORD: ${DB_PASSWORD} # <--- SECURED
+      POSTGRES_DB: ${DB_NAME}           # <--- SECURED
+    ports:
+      - "${PG_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - telescope-net
+
+  # 4. Storage Node (The Engine) 🦅
+  storage:
+    build:
+      context: .
+      dockerfile: ./internal/shared/Docker/Dockerfile.storage
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      # Construct the URL dynamically
+      DB_URL: "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}" 
+      KAFKA_BROKERS: "kafka:29092"
+      KAFKA_TOPIC: "${TELESCOPE_TOPIC}"
+      GRPC_PORT: ":${GRPC_PORT}"
+    ports:
+      - "${GRPC_PORT}:${GRPC_PORT}"
+    networks:
+      - telescope-net
+    restart: always
+
+  # 5. Producer (The Test Traffic) 🔫
+  # We don't start this automatically. You run it manually to "fire".
+  producer:
+    build:
+      context: .
+      dockerfile: ./internal/shared/Docker/Dockerfile.producer
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERS: "kafka:29092"
+      KAFKA_TOPIC: "telescope-logs"
+    networks:
+      - telescope-net
+
+volumes:
+  pgdata:
+
+networks:
+  telescope-net:
+    driver: bridge

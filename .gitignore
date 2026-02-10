@@ -1,0 +1,9 @@
+# Secrets
+.env
+
+# Binaries
+storage-node
+producer-node
+
+# Docker volume data (if mapped locally)
+pgdata/

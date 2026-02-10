@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package telescope;
+
+// This tells the compiler: "When you generate Go code, put it in this folder"
+option go_package = "github.com/Abhinnavverma/Telescope-Distributed-Log-Search-Engine/proto";
+
+// --- 1. The Data Structures ---
+
+message LogEntry {
+  string id = 1;          // ULID (Time-sorted ID)
+  string trace_id = 2;    // The Shard Key
+  
+  // Indexed Fields
+  string service = 3;     
+  string level = 4;       
+  
+  // The Payload
+  string body = 5;        // Raw JSON string
+  int64 timestamp = 6;    // Unix Nano timestamp
+}
+
+// --- 2. The Service Definition (API) ---
+
+service LogService {
+  // Ingest logs (Writer)
+  rpc PushLogs (PushLogRequest) returns (PushLogResponse);
+
+  // Query logs (Reader)
+  rpc SearchLogs (SearchLogRequest) returns (SearchLogResponse);
+}
+
+// --- 3. Request/Response Wrappers ---
+
+message PushLogRequest {
+  repeated LogEntry entries = 1; 
+}
+
+message PushLogResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message SearchLogRequest {
+  string query = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+}
+
+message SearchLogResponse {
+  repeated LogEntry results = 1;
+}

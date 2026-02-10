@@ -1,0 +1,32 @@
+# Stage 1: Build
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency files first (Caching layer)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the source code
+COPY . .
+
+# Build the Storage Node binary
+# We disable CGO for a purely static binary (easier for Alpine)
+RUN CGO_ENABLED=0 GOOS=linux go build -o storage-node cmd/storage/main.go
+
+# Stage 2: Run (Tiny Image)
+FROM alpine:latest
+
+WORKDIR /root/
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/storage-node .
+
+# Copy migration files (Vital for the app to know schema versions if we add auto-migrate later)
+COPY --from=builder /app/internal/migrations ./migrations
+
+# Expose the gRPC port
+EXPOSE 9000
+
+# Command to run
+CMD ["./storage-node"]
