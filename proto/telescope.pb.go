@@ -208,6 +208,9 @@ type SearchLogRequest struct {
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
 	StartTime     int64                  `protobuf:"varint,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime       int64                  `protobuf:"varint,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	Limit         int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Service       string                 `protobuf:"bytes,5,opt,name=service,proto3" json:"service,omitempty"`
+	Level         string                 `protobuf:"bytes,6,opt,name=level,proto3" json:"level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -261,6 +264,27 @@ func (x *SearchLogRequest) GetEndTime() int64 {
 		return x.EndTime
 	}
 	return 0
+}
+
+func (x *SearchLogRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *SearchLogRequest) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *SearchLogRequest) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
 }
 
 type SearchLogResponse struct {
@@ -323,12 +347,15 @@ const file_proto_telescope_proto_rawDesc = "" +
 	"\aentries\x18\x01 \x03(\v2\x13.telescope.LogEntryR\aentries\"P\n" +
 	"\x0fPushLogResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\"b\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\"\xa8\x01\n" +
 	"\x10SearchLogRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1d\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\x03R\tstartTime\x12\x19\n" +
-	"\bend_time\x18\x03 \x01(\x03R\aendTime\"B\n" +
+	"\bend_time\x18\x03 \x01(\x03R\aendTime\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x18\n" +
+	"\aservice\x18\x05 \x01(\tR\aservice\x12\x14\n" +
+	"\x05level\x18\x06 \x01(\tR\x05level\"B\n" +
 	"\x11SearchLogResponse\x12-\n" +
 	"\aresults\x18\x01 \x03(\v2\x13.telescope.LogEntryR\aresults2\x98\x01\n" +
 	"\n" +

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Abhinnavverma/Telescope-Distributed-Log-Search-Engine/internal/storage"
 	"github.com/Abhinnavverma/Telescope-Distributed-Log-Search-Engine/internal/storage/postgres"
@@ -47,6 +48,16 @@ func main() {
 	// We pass the kafkaGroup so the service knows who to checkpoint as.
 	svc := storage.NewStorageService(repo, kafkaGroup)
 
+	bgWorkerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	workerCfg := storage.WorkerConfig{
+		RetentionPeriod: 7 * 24 * time.Hour, // Keep 7 days
+		JanitorInterval: 1 * time.Hour,      // Check every hour
+		MergerInterval:  24 * time.Hour,     // Merge once a day
+	}
+
+	svc.StartWorkers(bgWorkerCtx, workerCfg)
+
 	// C. Network Layer 1: gRPC (The "Read" Path & Test Path)
 	// Note: We use storage.NewGRPCHandler, importing it from the internal package!
 	handler := storage.NewGRPCHandler(svc)
@@ -83,7 +94,7 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
-		log.Println("\n⚠️  Shutting down...")
+		log.Println("\n  Shutting down...")
 
 		// A. Stop accepting new gRPC requests
 		grpcServer.GracefulStop()
@@ -92,15 +103,15 @@ func main() {
 		consumer.Close()
 
 		// C. Flush whatever is in RAM to Disk
-		log.Println("💾 Flushing remaining logs to Disk...")
+		log.Println(" Flushing remaining logs to Disk...")
 		svc.Flush()
 
-		log.Println("👋 Goodnight.")
+		log.Println(" Goodnight.")
 		os.Exit(0)
 	}()
 
-	log.Printf("🚀 Storage Node listening on %s", grpcPort)
-	log.Printf("📥 Ingesting from Kafka Topic: %s (Group: %s)", kafkaTopic, kafkaGroup)
+	log.Printf(" Storage Node listening on %s", grpcPort)
+	log.Printf(" Ingesting from Kafka Topic: %s (Group: %s)", kafkaTopic, kafkaGroup)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

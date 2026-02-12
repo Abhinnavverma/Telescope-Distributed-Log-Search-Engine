@@ -26,7 +26,6 @@ type ConsumerConfig struct {
 
 // NewKafkaConsumer initializes the reader but does not start polling yet.
 func NewKafkaConsumer(cfg ConsumerConfig, svc *StorageService) *KafkaConsumer {
-	// We use the segmentio/kafka-go library which handles
 	// rebalancing and connection pooling automatically.
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:        cfg.Brokers,
@@ -60,7 +59,7 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 		}
 
 		// If failed, log and wait
-		log.Printf("⚠️  DB not ready yet (Attempt %d/%d): %v", i+1, maxRetries, err)
+		log.Printf("  DB not ready yet (Attempt %d/%d): %v", i+1, maxRetries, err)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -70,11 +69,11 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 
 	// If we still failed after 10 tries, then we crash.
 	if err != nil {
-		return fmt.Errorf("❌ CRITICAL: Could not connect to DB after %d retries: %w", maxRetries, err)
+		return fmt.Errorf(" CRITICAL: Could not connect to DB after %d retries: %w", maxRetries, err)
 	}
 
 	if lastOffset != -1 {
-		log.Printf("⏮️  Rewinding Kafka to Offset %d (Trusting Postgres)", lastOffset+1)
+		log.Printf("  Rewinding Kafka to Offset %d (Trusting Postgres)", lastOffset+1)
 
 		// We set the offset to last_offset + 1 (the NEXT message)
 		// Note: SetOffset must be called before the first Read/Fetch
@@ -83,7 +82,7 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 			return fmt.Errorf("failed to seek kafka: %v", err)
 		}
 	} else {
-		log.Println("🆕 No checkpoint found. Starting from Kafka default (First/Last).")
+		log.Println(" No checkpoint found. Starting from Kafka default (First/Last).")
 	}
 
 	for {
@@ -93,7 +92,7 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 			if ctx.Err() != nil {
 				return nil // Context cancelled, clean exit
 			}
-			log.Printf("❌ Error fetching message: %v", err)
+			log.Printf(" Error fetching message: %v", err)
 			continue // Temporary network blip? Retry.
 		}
 
@@ -101,7 +100,7 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 		// We assume the Gateway sends JSON. If it sends Protobuf binary, use proto.Unmarshal
 		var entry proto.LogEntry
 		if err := json.Unmarshal(m.Value, &entry); err != nil {
-			log.Printf("⚠️ Failed to parse log (Offset %d): %v", m.Offset, err)
+			log.Printf(" Failed to parse log (Offset %d): %v", m.Offset, err)
 			continue // Skip bad data (poison pill)
 		}
 
@@ -110,7 +109,7 @@ func (k *KafkaConsumer) Start(ctx context.Context) error {
 		// If the Service returns an error (e.g. MemTable full), we might want to backoff.
 		err = k.service.Push(ctx, []*proto.LogEntry{&entry}, m.Offset)
 		if err != nil {
-			log.Printf("⚠️ Service refused log: %v", err)
+			log.Printf(" Service refused log: %v", err)
 			// In a real system, we would pause/retry here to avoid dropping data.
 		}
 	}

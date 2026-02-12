@@ -45,6 +45,9 @@ message SearchLogRequest {
   string query = 1;
   int64 start_time = 2;
   int64 end_time = 3;
+  int32 limit = 4;
+  string service = 5;  
+  string level = 6;
 }
 
 message SearchLogResponse {

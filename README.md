@@ -149,10 +149,10 @@ Failure is treated as a **first-class design constraint**, not an edge case.
 ## 📊 Current Status
 
 - [x] Distributed ingestion pipeline implemented
-- [ ] Shard-based storage architecture complete
-- [ ] Scatter–gather query execution working
-- [ ] Index compaction & optimization
-- [ ] Query ranking and scoring
+- [x] Shard-based storage architecture complete
+- [x] Scatter–gather query execution working
+- [x] Index compaction & optimization
+- [x] Query ranking and scoring
 - [x] Load testing at scale
 - [ ] Production hardening
 
@@ -161,7 +161,7 @@ Failure is treated as a **first-class design constraint**, not an edge case.
 ## 🛣️ Roadmap
 
 - [ ] Query caching layer
-- [ ] Time-based retention policies
+- [x] Time-based retention policies
 - [ ] Compression for cold data
 - [ ] Advanced failure recovery
 - [ ] Multi-tenant isolation

@@ -14,7 +14,6 @@ type MemTable struct {
 	index       map[string][]*proto.LogEntry
 	lastIndexed int
 
-	// --- NEW: Offset Tracking ---
 	maxOffset int64
 
 	notifyChan chan struct{}
@@ -76,7 +75,7 @@ func (m *MemTable) Flush() ([]*proto.LogEntry, map[string][]string, int64) {
 
 	// 2. Capture Data
 	oldLogs := m.logs
-	currentOffset := m.maxOffset // <--- Capture the offset
+	currentOffset := m.maxOffset
 
 	// 3. Transform Index (Pointers -> IDs)
 	dbIndex := make(map[string][]string)
@@ -92,13 +91,11 @@ func (m *MemTable) Flush() ([]*proto.LogEntry, map[string][]string, int64) {
 	m.logs = make([]*proto.LogEntry, 0, 1000)
 	m.index = make(map[string][]*proto.LogEntry)
 	m.lastIndexed = 0
-	m.maxOffset = -1 // <--- Reset offset for next batch
+	m.maxOffset = -1
 
 	return oldLogs, dbIndex, currentOffset
 }
 
-// ... (Helper methods SearchRAM, addToIndexLocked, runAsyncIndexer remain the same) ...
-// Copy them from your previous version if needed, they were correct.
 // Including them here for completeness:
 
 func (m *MemTable) addToIndexLocked(log *proto.LogEntry) {
@@ -110,19 +107,51 @@ func (m *MemTable) addToIndexLocked(log *proto.LogEntry) {
 	}
 }
 
-func (m *MemTable) SearchRAM(query string, start, end int64) []*proto.LogEntry {
+func (m *MemTable) SearchRAM(query, service, level string, start, end int64) []*proto.LogEntry {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	hits, found := m.index[query]
-	if !found {
-		return nil
-	}
-	var results []*proto.LogEntry
-	for _, log := range hits {
-		if log.Timestamp >= start && log.Timestamp <= end {
-			results = append(results, log)
+
+	var candidates []*proto.LogEntry
+
+	// 1. SELECT CANDIDATES
+	if query != "" {
+		hits, found := m.index[query]
+		if !found {
+			return nil
 		}
+		candidates = hits
+	} else {
+		// Since MemTables are small (<64MB), a linear scan is negligible (nanoseconds).
+		candidates = m.logs
 	}
+
+	var results []*proto.LogEntry
+
+	// 2. APPLY FILTERS (The "Where" Clause)
+	for _, log := range candidates {
+		// A. Time Filter (Always check bounds)
+		// Note: We use 0 to mean "No Limit"
+		if start > 0 && log.Timestamp < start {
+			continue
+		}
+		if end > 0 && log.Timestamp > end {
+			continue
+		}
+
+		// B. Service Filter
+		if service != "" && log.Service != service {
+			continue
+		}
+
+		// C. Level Filter
+		if level != "" && log.Level != level {
+			continue
+		}
+
+		// If we survived all checks, it's a match!
+		results = append(results, log)
+	}
+
 	return results
 }
 

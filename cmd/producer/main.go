@@ -17,8 +17,8 @@ import (
 // Config
 const (
 	Topic     = "telescope-logs"
-	TotalLogs = 100000
-	BatchSize = 5000
+	TotalLogs = 1000000
+	BatchSize = 500000
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	w := &kafka.Writer{
 		Addr:     kafka.TCP(brokers...),
 		Topic:    Topic,
-		Balancer: &kafka.LeastBytes{},
+		Balancer: &kafka.RoundRobin{},
 	}
 	defer w.Close()
 
@@ -54,7 +54,7 @@ func main() {
 		if len(batch) >= BatchSize {
 			err := w.WriteMessages(context.Background(), batch...)
 			if err != nil {
-				log.Printf("❌ Failed to write batch: %v", err)
+				log.Printf("Failed to write batch: %v", err)
 			}
 
 			// Empty the box for the next round
@@ -69,7 +69,7 @@ func main() {
 	}
 
 	duration := time.Since(start)
-	log.Printf("✅ DONE! Sent %d logs in %v", TotalLogs, duration)
+	log.Printf("DONE! Sent %d logs in %v", TotalLogs, duration)
 	log.Printf("Rate: %.2f logs/sec", float64(TotalLogs)/duration.Seconds())
 }
 
